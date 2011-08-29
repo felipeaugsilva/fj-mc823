@@ -14,9 +14,8 @@
 #include <sys/times.h>
 #include <time.h>
 
-#define PORT 3490    /* the port client will be connecting to */
-
-#define MAXDATASIZE 100 /* max number of bytes we can get at once */
+#define PORT 3490          /* the port client will be connecting to */
+#define MAXDATASIZE 1000   /* max number of bytes we can get at once */
 
 /* TODO list
  * (1) colocar tempo no lugar correto
@@ -24,13 +23,14 @@
 
 int main(int argc, char *argv[])
 {
-    int sockfd, numbytes;  
-    char buf[MAXDATASIZE];
+    int sockfd, numBytes;
     struct hostent *he;
-    struct sockaddr_in their_addr; /* connector's address information */
+    struct sockaddr_in their_addr;   /* connector's address information */
     clock_t startTime, endTime;
     struct tms start, end;
     float elapsedTime;
+    char *buffer = (char*)malloc(MAXDATASIZE*sizeof(char));
+    int sentLines, recLines, sentBytes, recBytes, longestLine, lineSize;
     
     startTime = times(&start); //TODO (1)
 
@@ -58,17 +58,42 @@ int main(int argc, char *argv[])
         perror("connect");
         exit(1);
     }
+    
+    sentLines = recLines = sentBytes = recBytes = longestLine = lineSize = 0;
+    
+    while((buffer = fgets(buffer, MAXDATASIZE, stdin)) != NULL) {
+        
+        lineSize = strlen(buffer);
+        sentLines += 1;
+        sentBytes += lineSize;
+        if(lineSize > longestLine)
+            longestLine = lineSize;
+        
+        if ((send(sockfd, buffer, strlen(buffer), 0)) == -1) {
+            perror("send");
+            exit(1);
+        }
+        
+        if ((numBytes = recv(sockfd, buffer, MAXDATASIZE, 0)) == -1) {
+            perror("recv");
+            exit(1);
+        }
 
-    if ((numbytes=recv(sockfd, buf, MAXDATASIZE, 0)) == -1) {
-        perror("recv");
-        exit(1);
+        buffer[numBytes] = '\0';
+        recLines += 1;
+        recBytes += numBytes;
+
+        fputs(buffer, stdout);
     }
 
-    buf[numbytes] = '\0';
-
-    printf("Received: %s",buf);
-
     close(sockfd);
+    free(buffer);
+    
+    fprintf(stderr, "Linhas enviadas:        %d\n", sentLines);
+    fprintf(stderr, "Tamanho da maior linha: %d\n", longestLine);
+    fprintf(stderr, "Caracteres enviados:    %d\n", sentBytes);
+    fprintf(stderr, "Linhas recebidas:       %d\n", recLines);
+    fprintf(stderr, "Caracteres recebidos:   %d\n", recBytes);
     
     endTime = times(&end); //TODO (1)
     elapsedTime = (float)((endTime - startTime) / sysconf(_SC_CLK_TCK));
@@ -76,6 +101,3 @@ int main(int argc, char *argv[])
     
     return 0;
 }
-
-
-
