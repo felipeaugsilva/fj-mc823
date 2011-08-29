@@ -13,26 +13,28 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#define MYPORT 3490    /* the port users will be connecting to */
-
-#define BACKLOG 10     /* how many pending connections queue will hold */
+#define MYPORT 3490        /* the port users will be connecting to */
+#define BACKLOG 10         /* how many pending connections queue will hold */
+#define MAXDATASIZE 1000   /* max number of bytes we can get at once */
 
 int main()
 {
-    int sockfd, new_fd;            /* listen on sock_fd, new connection on new_fd */
-    struct sockaddr_in my_addr;    /* my address information */
-    struct sockaddr_in their_addr; /* connector's address information */
+    int sockfd, new_fd;              /* listen on sock_fd, new connection on new_fd */
+    struct sockaddr_in my_addr;      /* my address information */
+    struct sockaddr_in their_addr;   /* connector's address information */
     unsigned int sin_size;
+    int numBytes, totalBytes, recLines;
+    char buffer[MAXDATASIZE];
 
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         perror("socket");
         exit(1);
     }
 
-    my_addr.sin_family = AF_INET;         /* host byte order */
-    my_addr.sin_port = htons(MYPORT);     /* short, network byte order */
-    my_addr.sin_addr.s_addr = INADDR_ANY; /* automatically fill with my IP */
-    bzero(&(my_addr.sin_zero), 8);        /* zero the rest of the struct */
+    my_addr.sin_family = AF_INET;          /* host byte order */
+    my_addr.sin_port = htons(MYPORT);      /* short, network byte order */
+    my_addr.sin_addr.s_addr = INADDR_ANY;  /* automatically fill with my IP */
+    bzero(&(my_addr.sin_zero), 8);         /* zero the rest of the struct */
 
     if (bind(sockfd, (struct sockaddr *)&my_addr, sizeof(struct sockaddr)) == -1) {
         perror("bind");
@@ -46,18 +48,29 @@ int main()
 
     while(1) {  /* main accept() loop */
         sin_size = sizeof(struct sockaddr_in);
+        
         if ((new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size)) == -1) {
             perror("accept");
             continue;
         }
         printf("server: got connection from %s\n", inet_ntoa(their_addr.sin_addr));
+        recLines = totalBytes = 0;
+        
+        while ((numBytes = recv(new_fd, buffer, 100, 0)) > 0) {
 
-        if (send(new_fd, "Hello, world!\n", 14, 0) == -1) {
-            perror("send");
-            exit(1);
+            recLines += 1;
+            totalBytes += numBytes;
+            
+            if (send(new_fd, buffer, numBytes, 0) == -1) {
+                perror("send");
+                exit(1);
+            }
         }
+        
+        fprintf(stderr, "Total de leituras:   %d\n", recLines);
+        fprintf(stderr, "Total de caracteres: %d\n", totalBytes);
 
-        close(new_fd);  
+        close(new_fd);
     }
 
     return 0;
