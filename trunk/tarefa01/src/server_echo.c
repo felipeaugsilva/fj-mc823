@@ -25,9 +25,15 @@ int main()
     unsigned int sin_size;
     int numBytes, totalBytes, recLines;
     char buffer[MAXDATASIZE];
+    int optval = 1;
 
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         perror("socket");
+        exit(1);
+    }
+    
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int)) == -1) {
+        perror("setsockopt");
         exit(1);
     }
 
@@ -54,23 +60,32 @@ int main()
             continue;
         }
         printf("server: got connection from %s\n", inet_ntoa(their_addr.sin_addr));
-        recLines = totalBytes = 0;
         
-        while ((numBytes = recv(new_fd, buffer, 100, 0)) > 0) {
-
-            recLines += 1;
-            totalBytes += numBytes;
+        if(!fork()) {
             
-            if (send(new_fd, buffer, numBytes, 0) == -1) {
-                perror("send");
-                exit(1);
+            recLines = totalBytes = 0;
+            
+            while ((numBytes = recv(new_fd, buffer, 100, 0)) > 0) {
+
+                recLines += 1;
+                totalBytes += numBytes;
+                
+                if (send(new_fd, buffer, numBytes, 0) == -1) {
+                    perror("send");
+                    exit(1);
+                }
             }
+            
+            fprintf(stderr, "Total de leituras:   %d\n", recLines);
+            fprintf(stderr, "Total de caracteres: %d\n", totalBytes);
+            
+            close(new_fd);
+            exit(0);
         }
-        
-        fprintf(stderr, "Total de leituras:   %d\n", recLines);
-        fprintf(stderr, "Total de caracteres: %d\n", totalBytes);
 
         close(new_fd);
+        
+        while(waitpid(-1,NULL,WNOHANG) > 0);   /* clean up all child processes */
     }
 
     return 0;
