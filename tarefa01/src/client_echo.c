@@ -17,9 +17,6 @@
 #define PORT 3490          /* the port client will be connecting to */
 #define MAXDATASIZE 1000   /* max number of bytes we can get at once */
 
-/* TODO list
- * (1) colocar tempo no lugar correto
- */
 
 int main(int argc, char *argv[])
 {
@@ -27,12 +24,9 @@ int main(int argc, char *argv[])
     struct hostent *he;
     struct sockaddr_in their_addr;   /* connector's address information */
     clock_t startTime, endTime;
-    struct tms start, end;
     float elapsedTime;
     char *buffer = (char*)malloc(MAXDATASIZE*sizeof(char));
     int sentLines, recLines, sentBytes, recBytes, longestLine, lineSize;
-    
-    startTime = times(&start); //TODO (1)
 
     if (argc != 2) {
         fprintf(stderr,"usage: client hostname\n");
@@ -61,6 +55,8 @@ int main(int argc, char *argv[])
     
     sentLines = recLines = sentBytes = recBytes = longestLine = lineSize = 0;
     
+    startTime = times(NULL);
+    
     while((buffer = fgets(buffer, MAXDATASIZE, stdin)) != NULL) {
         
         lineSize = strlen(buffer);
@@ -85,6 +81,9 @@ int main(int argc, char *argv[])
 
         fputs(buffer, stdout);
     }
+    
+    endTime = times(NULL);
+    elapsedTime = (float)((endTime - startTime) / (float)sysconf(_SC_CLK_TCK));
 
     close(sockfd);
     free(buffer);
@@ -94,10 +93,7 @@ int main(int argc, char *argv[])
     fprintf(stderr, "Caracteres enviados:    %d\n", sentBytes);
     fprintf(stderr, "Linhas recebidas:       %d\n", recLines);
     fprintf(stderr, "Caracteres recebidos:   %d\n", recBytes);
-    
-    endTime = times(&end); //TODO (1)
-    elapsedTime = (float)((endTime - startTime) / sysconf(_SC_CLK_TCK));
-    fprintf(stderr, "Tempo total: %4.1fs\n", elapsedTime);    
+    fprintf(stderr, "Tempo total: %4.5fs\n", elapsedTime);
     
     return 0;
 }
