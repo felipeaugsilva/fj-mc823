@@ -1,6 +1,11 @@
 /*
-** server.c -- a stream socket server demo
-*/
+ * server_echo.c - Servidor concorrente de echo simples em TCP
+ * 
+ * MC823 - Tarefa 01
+ * Felipe Augusto da Silva        RA 096993
+ * Jesse de Moura Tavano Moretto  RA 081704
+ * 
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,6 +37,7 @@ int main()
         exit(1);
     }
     
+    /* lose the pesky "address already in use" error message */
     if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int)) == -1) {
         perror("setsockopt");
         exit(1);
@@ -65,15 +71,15 @@ int main()
             
             recLines = totalBytes = 0;
             
-            while ((numBytes = recv(new_fd, buffer, 100, 0)) > 0) {
-
-                recLines += 1;
-                totalBytes += numBytes;
+            while ((numBytes = recv(new_fd, buffer, MAXDATASIZE, 0)) > 0) {
                 
                 if (send(new_fd, buffer, numBytes, 0) == -1) {
                     perror("send");
                     exit(1);
                 }
+                
+                recLines += 1;
+                totalBytes += numBytes;
             }
             
             fprintf(stderr, "Total de leituras:   %d\n", recLines);
@@ -90,4 +96,3 @@ int main()
 
     return 0;
 }
-
