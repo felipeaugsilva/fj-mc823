@@ -1,6 +1,11 @@
 /*
-** client.c -- a stream socket client demo
-*/
+ * client_echo.c - Cliente de echo simples em TCP
+ * 
+ * MC823 - Tarefa 01
+ * Felipe Augusto da Silva        RA 096993
+ * Jesse de Moura Tavano Moretto  RA 081704
+ * 
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,13 +25,13 @@
 
 int main(int argc, char *argv[])
 {
-    int sockfd, numBytes;
+    int sockfd;
+    int sentLines, recLines, sentBytes, recBytes, longestLine, lineSize, numBytes;
     struct hostent *he;
     struct sockaddr_in their_addr;   /* connector's address information */
     clock_t startTime, endTime;
     float elapsedTime;
     char *buffer = (char*)malloc(MAXDATASIZE*sizeof(char));
-    int sentLines, recLines, sentBytes, recBytes, longestLine, lineSize;
 
     if (argc != 2) {
         fprintf(stderr,"usage: client hostname\n");
@@ -55,7 +60,7 @@ int main(int argc, char *argv[])
     
     sentLines = recLines = sentBytes = recBytes = longestLine = lineSize = 0;
     
-    startTime = times(NULL);
+    startTime = times(NULL);   /* start time counting */
     
     while((buffer = fgets(buffer, MAXDATASIZE, stdin)) != NULL) {
         
@@ -82,18 +87,19 @@ int main(int argc, char *argv[])
         fputs(buffer, stdout);
     }
     
-    endTime = times(NULL);
+    endTime = times(NULL);   /* stop time counting */
     elapsedTime = (float)((endTime - startTime) / (float)sysconf(_SC_CLK_TCK));
 
     close(sockfd);
     free(buffer);
     
+    /* send statistics to stderr */
     fprintf(stderr, "Linhas enviadas:        %d\n", sentLines);
     fprintf(stderr, "Tamanho da maior linha: %d\n", longestLine);
     fprintf(stderr, "Caracteres enviados:    %d\n", sentBytes);
     fprintf(stderr, "Linhas recebidas:       %d\n", recLines);
     fprintf(stderr, "Caracteres recebidos:   %d\n", recBytes);
-    fprintf(stderr, "Tempo total: %4.5fs\n", elapsedTime);
+    fprintf(stderr, "Tempo total: %4.2fs\n", elapsedTime);
     
     return 0;
 }
