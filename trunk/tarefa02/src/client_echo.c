@@ -1,7 +1,7 @@
 /*
- * client_echo.c - Cliente de echo simples em TCP
+ * client_echo.c - Cliente de eco sofisticado em TCP
  * 
- * MC823 - Tarefa 01
+ * MC823 - Tarefa 02
  * Felipe Augusto da Silva        RA 096993
  * Jesse de Moura Tavano Moretto  RA 081704
  * 
@@ -60,42 +60,40 @@ int main(int argc, char *argv[])
     }
 
     if ((rsock = fdopen(sockfd, "r")) == NULL) {
-        perror("fdopen");
+        perror("fdopen_rsock");
         exit(1);
     }
 
     if ((wsock = fdopen(sockfd, "w")) == NULL) {
-        perror("fdopen");
+        perror("fdopen_wsock");
         exit(1);
     }
 
     sentLines = recLines = sentBytes = recBytes = longestLine = lineSize = 0;
     
     startTime = times(NULL);   /* start time counting */
-    
-    while((fgets(buffer, MAXDATASIZE, stdin)) != NULL) {
-        
-        lineSize = strlen(buffer);
-        sentLines += 1;
-        sentBytes += lineSize;
-        if(lineSize > longestLine)
-            longestLine = lineSize;
-        
-        if ((fputs(buffer, wsock)) == EOF) {
-            perror("send");
-            exit(1);
-        }
-        fflush(wsock);
-        
-        if ((fgets(buffer, MAXDATASIZE, rsock)) == NULL) {
-            perror("recv");
-            exit(1);
-        }
-        fflush(rsock);
 
+    if(!fork()) {
+        while(fgets(buffer, MAXDATASIZE, stdin) != NULL) {
+            lineSize = strlen(buffer);
+            sentLines += 1;
+            sentBytes += lineSize;
+            if(lineSize > longestLine)
+                longestLine = lineSize;
+            if ((fputs(buffer, wsock)) == EOF) {
+                perror("send");
+                exit(1);
+            }
+            fflush(wsock);
+        }
+        shutdown(sockfd, SHUT_WR);
+        exit(0);
+    }
+    
+    while(fgets(buffer, MAXDATASIZE, rsock) != NULL) {
+        fflush(rsock);
         recLines += 1;
         recBytes += strlen(buffer);
-
         fputs(buffer, stdout);
     }
     

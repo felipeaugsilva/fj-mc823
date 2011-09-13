@@ -1,7 +1,7 @@
 /*
- * server_echo.c - Servidor concorrente de echo simples em TCP
+ * server_echo.c - Servidor de eco sofisticado em TCP
  * 
- * MC823 - Tarefa 01
+ * MC823 - Tarefa 02
  * Felipe Augusto da Silva        RA 096993
  * Jesse de Moura Tavano Moretto  RA 081704
  * 
@@ -92,8 +92,6 @@ int main()
                 fflush(wsock);
                 recLines += 1;
                 totalBytes += strlen(buffer);
-                
-                
             }
             
             fprintf(stderr, "Total de leituras:   %d\n", recLines);
