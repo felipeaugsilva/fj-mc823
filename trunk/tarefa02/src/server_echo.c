@@ -28,9 +28,10 @@ int main()
     struct sockaddr_in my_addr;      /* my address information */
     struct sockaddr_in their_addr;   /* connector's address information */
     unsigned int sin_size;
-    int numBytes, totalBytes, recLines;
+    int totalBytes, recLines;
     char buffer[MAXDATASIZE];
     int optval = 1;
+    FILE *rsock, *wsock;
 
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         perror("socket");
@@ -57,7 +58,7 @@ int main()
         perror("listen");
         exit(1);
     }
-
+    
     while(1) {  /* main accept() loop */
         sin_size = sizeof(struct sockaddr_in);
         
@@ -65,21 +66,34 @@ int main()
             perror("accept");
             continue;
         }
+        
+	    if( (rsock = fdopen(new_fd, "r")) == NULL ) {
+	        perror("fdopen_rsock");
+	        exit(1);
+	    }
+	
+	    if( (wsock = fdopen(new_fd, "w")) == NULL ) {
+	        perror("fdopen_wsock");
+	        exit(1);
+	    }
+        
         printf("server: got connection from %s\n", inet_ntoa(their_addr.sin_addr));
         
         if(!fork()) {
             
             recLines = totalBytes = 0;
             
-            while ((numBytes = recv(new_fd, buffer, MAXDATASIZE, 0)) > 0) {
-                
-                if (send(new_fd, buffer, numBytes, 0) == -1) {
+            while (fgets(buffer, MAXDATASIZE, rsock) != NULL) {
+                fflush(rsock);
+                if (fputs(buffer, wsock) == EOF) {
                     perror("send");
                     exit(1);
                 }
-                
+                fflush(wsock);
                 recLines += 1;
-                totalBytes += numBytes;
+                totalBytes += strlen(buffer);
+                
+                
             }
             
             fprintf(stderr, "Total de leituras:   %d\n", recLines);
