@@ -26,12 +26,13 @@
 int main(int argc, char *argv[])
 {
     int sockfd;
-    int sentLines, recLines, sentBytes, recBytes, longestLine, lineSize, numBytes;
+    int sentLines, recLines, sentBytes, recBytes, longestLine, lineSize;
     struct hostent *he;
     struct sockaddr_in their_addr;   /* connector's address information */
     clock_t startTime, endTime;
     float elapsedTime;
     char *buffer = (char*)malloc(MAXDATASIZE*sizeof(char));
+    FILE *rsock, *wsock;
 
     if (argc != 2) {
         fprintf(stderr,"usage: client hostname\n");
@@ -57,12 +58,22 @@ int main(int argc, char *argv[])
         perror("connect");
         exit(1);
     }
-    
+
+    if ((rsock = fdopen(sockfd, "r")) == NULL) {
+        perror("fdopen");
+        exit(1);
+    }
+
+    if ((wsock = fdopen(sockfd, "w")) == NULL) {
+        perror("fdopen");
+        exit(1);
+    }
+
     sentLines = recLines = sentBytes = recBytes = longestLine = lineSize = 0;
     
     startTime = times(NULL);   /* start time counting */
     
-    while((buffer = fgets(buffer, MAXDATASIZE, stdin)) != NULL) {
+    while((fgets(buffer, MAXDATASIZE, stdin)) != NULL) {
         
         lineSize = strlen(buffer);
         sentLines += 1;
@@ -70,19 +81,20 @@ int main(int argc, char *argv[])
         if(lineSize > longestLine)
             longestLine = lineSize;
         
-        if ((send(sockfd, buffer, strlen(buffer), 0)) == -1) {
+        if ((fputs(buffer, wsock)) == EOF) {
             perror("send");
             exit(1);
         }
+        fflush(wsock);
         
-        if ((numBytes = recv(sockfd, buffer, MAXDATASIZE, 0)) == -1) {
+        if ((fgets(buffer, MAXDATASIZE, rsock)) == NULL) {
             perror("recv");
             exit(1);
         }
+        fflush(rsock);
 
-        buffer[numBytes] = '\0';
         recLines += 1;
-        recBytes += numBytes;
+        recBytes += strlen(buffer);
 
         fputs(buffer, stdout);
     }
