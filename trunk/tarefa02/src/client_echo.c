@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <sys/times.h>
 #include <time.h>
+#include <sys/wait.h>
 
 #define PORT 3490          /* the port client will be connecting to */
 #define MAXDATASIZE 1000   /* max number of bytes we can get at once */
@@ -87,6 +88,12 @@ int main(int argc, char *argv[])
             fflush(wsock);
         }
         shutdown(sockfd, SHUT_WR);
+
+        /* send statistics to stderr */
+        fprintf(stderr, "Linhas enviadas:        %d\n", sentLines);
+        fprintf(stderr, "Tamanho da maior linha: %d\n", longestLine);
+        fprintf(stderr, "Caracteres enviados:    %d\n", sentBytes);
+
         exit(0);
     }
     
@@ -96,6 +103,8 @@ int main(int argc, char *argv[])
         recBytes += strlen(buffer);
         fputs(buffer, stdout);
     }
+
+    wait(NULL);
     
     endTime = times(NULL);   /* stop time counting */
     elapsedTime = (float)((endTime - startTime) / (float)sysconf(_SC_CLK_TCK));
@@ -104,9 +113,6 @@ int main(int argc, char *argv[])
     free(buffer);
     
     /* send statistics to stderr */
-    fprintf(stderr, "Linhas enviadas:        %d\n", sentLines);
-    fprintf(stderr, "Tamanho da maior linha: %d\n", longestLine);
-    fprintf(stderr, "Caracteres enviados:    %d\n", sentBytes);
     fprintf(stderr, "Linhas recebidas:       %d\n", recLines);
     fprintf(stderr, "Caracteres recebidos:   %d\n", recBytes);
     fprintf(stderr, "Tempo total: %4.2fs\n", elapsedTime);
