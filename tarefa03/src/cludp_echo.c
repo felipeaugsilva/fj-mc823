@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
     char *buffer = (char*)malloc(MAXDATASIZE*sizeof(char));
 
     if (argc != 3) {
-        fprintf(stderr, "usage: talker hostname mode(0-1)\n");
+        fprintf(stderr, "usage: %s hostname mode(0-1)\n", argv[0]);
         fprintf(stderr, "mode 0: without connect\nmode 1: using connect\n");
         exit(1);
     }
