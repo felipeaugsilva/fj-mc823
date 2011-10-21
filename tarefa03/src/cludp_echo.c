@@ -36,7 +36,8 @@ int main(int argc, char *argv[])
     char *buffer = (char*)malloc(MAXDATASIZE*sizeof(char));
 
     if (argc != 3) {
-        fprintf(stderr,"usage: talker hostname mode(0-1)\n");
+        fprintf(stderr, "usage: talker hostname mode(0-1)\n");
+        fprintf(stderr, "mode 0: without connect\nmode 1: using connect\n");
         exit(1);
     }
 
@@ -66,7 +67,8 @@ int main(int argc, char *argv[])
     startTime = times(NULL);   /* start time counting */
     
     // use sendto and recvfrom
-    if(argv[2] == 0) {
+    if(atoi(argv[2]) == 0) {
+    
         while((buffer = fgets(buffer, MAXDATASIZE, stdin)) != NULL) {
           
           lineSize = strlen(buffer);
@@ -102,6 +104,7 @@ int main(int argc, char *argv[])
 
     // use send and recv
     else {
+    
         if (connect(sockfd, (struct sockaddr *)&their_addr, sizeof(struct sockaddr)) == -1) {
           perror("connect");
           exit(1);
