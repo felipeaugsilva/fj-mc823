@@ -42,29 +42,32 @@ int main(int argc, char* argv[])
     
     FD_ZERO(&readfds);
 
-    if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-        perror("socket");
-        exit(1);
-    }
-    
     my_addr.sin_family = AF_INET;         // host byte order
     my_addr.sin_port = htons(MYPORT);     // short, network byte order
     my_addr.sin_addr.s_addr = INADDR_ANY; // automatically fill with my IP
     memset(&(my_addr.sin_zero), '\0', 8); // zero the rest of the struct
 
-    if (bind(sockfd, (struct sockaddr *)&my_addr,
-        sizeof(struct sockaddr)) == -1) {
-        perror("bind");
-        exit(1);
-    }
+
     
     while(1) {  /* main loop */
     
         totalReads = totalBytes = 0;
         first = 1;
         
+        if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+          perror("socket");
+          exit(1);
+        }
+        
+        if (bind(sockfd, (struct sockaddr *)&my_addr,
+          sizeof(struct sockaddr)) == -1) {
+          perror("bind");
+          exit(1);
+        }
+        
         // use sendto and recvfrom
-        if( atoi(argv[1]) == 0 ) {
+        if(!(atoi(argv[1]))) {
+            printf("nonConnect-mode chosen\n");
             do {
                 addr_len = sizeof(struct sockaddr);
                 tv.tv_sec = TIMEOUT;
@@ -102,9 +105,12 @@ int main(int argc, char* argv[])
         }
         // use send and recv
         else {
+            printf("Connect-mode chosen\n");
             addr_len = sizeof(struct sockaddr);
+                        
+            //select(sockfd+1, &readfds, NULL, NULL, NULL);   // waiting for the first packet, no timeout
             
-            // using recfrom to get the client address
+            // using recvfrom to get the client address
             if ((numBytes = recvfrom(sockfd, buffer, MAXBUFLEN-1 , 0,
                 (struct sockaddr *)&their_addr, &addr_len)) == -1) {
                 perror("recvfrom");
@@ -124,13 +130,28 @@ int main(int argc, char* argv[])
             totalBytes += numBytes;
             
             do {
-                if ((numBytes = recv(sockfd, buffer, MAXBUFLEN, 0)) == -1) {
-                   perror("recv");
-                   exit(1);
-                }
-                if ((send(sockfd, buffer, strlen(buffer), 0)) == -1) {
-                    perror("send");
+              
+                tv.tv_sec = TIMEOUT;
+                tv.tv_usec = 0;
+                FD_SET(sockfd, &readfds);
+                            
+                select(sockfd+1, &readfds, NULL, NULL, &tv);                
+              
+                if (FD_ISSET(sockfd, &readfds)) {    
+                  if ((numBytes = recv(sockfd, buffer, MAXBUFLEN, 0)) == -1) {
+                    perror("recv");
                     exit(1);
+                  }
+                
+                
+                  if ((send(sockfd, buffer, strlen(buffer), 0)) == -1) {
+                      perror("send");
+                      exit(1);
+                  }
+                }
+                else {
+                    fprintf( stderr, "Timeout (%ds)\n", TIMEOUT );
+                    break;
                 }
                 
                 totalReads++;
@@ -139,6 +160,16 @@ int main(int argc, char* argv[])
             } while(numBytes > 0);
 
             // TODO disconnect
+            
+            printf("Disconnect\n");
+            
+            // disconnect
+            their_addr.sin_family = AF_UNSPEC;
+            if (connect(sockfd, (struct sockaddr *)&their_addr, sizeof(struct sockaddr)) == -1) {
+              perror("connect_unspec");
+              exit(1);
+            }
+            close(sockfd);
         }
         
         fprintf(stderr, "Total de leituras:   %d\n", totalReads);
