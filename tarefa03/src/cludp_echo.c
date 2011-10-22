@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
     startTime = times(NULL);   /* start time counting */
     
     // use sendto and recvfrom
-    if(atoi(argv[2]) == 0) {
+    if(!(atoi(argv[2]))) {
     
         while((buffer = fgets(buffer, MAXDATASIZE, stdin)) != NULL) {
           
