@@ -55,20 +55,13 @@ int main(int argc, char *argv[])
     // use sendto and recvfrom
     if(atoi(argv[2]) == 0) {
         while((buffer = fgets(buffer, MAXDATASIZE, stdin)) != NULL) {
-          
+          fputs(buffer, stdout);
           if ((sendto(sockfd, buffer, strlen(buffer), 0,
                      (struct sockaddr *)&their_addr, sizeof(struct sockaddr))) == -1) {
               perror("sendto");
               exit(1);
           }
-            
-          if ((recvfrom(sockfd, buffer, MAXDATASIZE-1 , 0,
-                      (struct sockaddr *)&their_addr, &addr_len)) == -1) {
-              perror("recvfrom");
-              exit(1);
-          }
-
-          fputs(buffer, stdout);
+          
         }
         if ((sendto(sockfd, "", 0, 0,
                  (struct sockaddr *)&their_addr, sizeof(struct sockaddr))) == -1) {
@@ -85,18 +78,11 @@ int main(int argc, char *argv[])
         }
 
         while((buffer = fgets(buffer, MAXDATASIZE, stdin)) != NULL) {
-           
+          fputs(buffer, stdout); 
           if ((send(sockfd, buffer, strlen(buffer), 0)) == -1) {
               perror("send");
               exit(1);
           }
-          
-          if ((recv(sockfd, buffer, MAXDATASIZE, 0)) == -1) {
-              perror("recv");
-              exit(1);
-          }
-
-          fputs(buffer, stdout);
         }
         if ((send(sockfd, "", 0, 0)) == -1) {
           perror("send_zero_bytes");
