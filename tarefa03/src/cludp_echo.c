@@ -100,6 +100,7 @@ int main(int argc, char *argv[])
           perror("sendto_zero_bytes");
           exit(1);
         }
+        
     }
 
     // use send and recv
@@ -136,6 +137,13 @@ int main(int argc, char *argv[])
         }
         if ((send(sockfd, "", 0, 0)) == -1) {
           perror("send_zero_bytes");
+          exit(1);
+        }
+        
+        // disconnect
+        their_addr.sin_family = AF_UNSPEC;
+        if (connect(sockfd, (struct sockaddr *)&their_addr, sizeof(struct sockaddr)) == -1) {
+          perror("connect_unspec");
           exit(1);
         }
     }    
