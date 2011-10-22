@@ -29,7 +29,6 @@ int main(int argc, char *argv[])
     int sockfd;
     struct sockaddr_in their_addr; // connector's address information
     struct hostent *he;
-    socklen_t addr_len;
     char *buffer = (char*)malloc(MAXDATASIZE*sizeof(char));
 
     if (argc != 3) {
