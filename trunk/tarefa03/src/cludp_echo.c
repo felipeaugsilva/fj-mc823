@@ -51,16 +51,10 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    their_addr.sin_family = AF_INET;     // host byte order
-    their_addr.sin_port = htons(SERVERPORT); // short, network byte order
+    their_addr.sin_family = AF_INET;                        // host byte order
+    their_addr.sin_port = htons(SERVERPORT);                // short, network byte order
     their_addr.sin_addr = *((struct in_addr *)he->h_addr);
-    memset(&(their_addr.sin_zero), '\0', 8);  // zero the rest of the struct
-
-    //if ((numbytes = sendto(sockfd, argv[2], strlen(argv[2]), 0,
-    //        (struct sockaddr *)&their_addr, sizeof(struct sockaddr))) == -1) {
-    //   perror("sendto");
-    //   exit(1);
-    //}
+    memset(&(their_addr.sin_zero), '\0', 8);                // zero the rest of the struct
 
     sentLines = recLines = sentBytes = recBytes = longestLine = lineSize = 0;
     
