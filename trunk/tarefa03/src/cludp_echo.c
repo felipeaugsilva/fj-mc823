@@ -34,6 +34,7 @@ int main(int argc, char *argv[])
     int sentLines, recLines, sentBytes, recBytes, longestLine, lineSize, numBytes;
     clock_t startTime, endTime;
     float elapsedTime;
+    int first;
     char *buffer = (char*)malloc(MAXDATASIZE*sizeof(char));
     
     struct timeval tv;
