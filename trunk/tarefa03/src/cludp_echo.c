@@ -23,7 +23,8 @@
 
 #define SERVERPORT 3490 // the port users will be connecting to
 #define MAXDATASIZE 1000   /* max number of bytes we can get at once */
-#define TIMEOUT 5
+#define TIMEOUT 3
+#define MAXTIMEOUTS 5
 
 int main(int argc, char *argv[])
 {
@@ -34,7 +35,7 @@ int main(int argc, char *argv[])
     int sentLines, recLines, sentBytes, recBytes, longestLine, lineSize, numBytes;
     clock_t startTime, endTime;
     float elapsedTime;
-    int first;
+    int timeouts = 0;
     char *buffer = (char*)malloc(MAXDATASIZE*sizeof(char));
     
     struct timeval tv;
@@ -88,10 +89,7 @@ int main(int argc, char *argv[])
               exit(1);
           }
             
-          if ( !first )
-            select(sockfd+1, &readfds, NULL, NULL, &tv);
-          else
-            select(sockfd+1, &readfds, NULL, NULL, NULL);   // waiting for the first packet, no timeout
+          select(sockfd+1, &readfds, NULL, NULL, &tv);
               
           if (FD_ISSET(sockfd, &readfds)) {
               
@@ -104,10 +102,14 @@ int main(int argc, char *argv[])
           
           else {
             fprintf( stderr, "Timeout (%ds)\n", TIMEOUT );
-            break;
+            timeouts++;
+            if( timeouts == MAXTIMEOUTS )
+                break;
+            else
+                continue;
           }
           
-          first = 0;
+          timeouts = 0;
           buffer[numBytes] = '\0';
           recLines += 1;
           recBytes += numBytes;
