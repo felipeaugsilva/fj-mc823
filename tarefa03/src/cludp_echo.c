@@ -23,6 +23,7 @@
 
 #define SERVERPORT 3490 // the port users will be connecting to
 #define MAXDATASIZE 1000   /* max number of bytes we can get at once */
+#define TIMEOUT 5
 
 int main(int argc, char *argv[])
 {
@@ -34,12 +35,17 @@ int main(int argc, char *argv[])
     clock_t startTime, endTime;
     float elapsedTime;
     char *buffer = (char*)malloc(MAXDATASIZE*sizeof(char));
+    
+    struct timeval tv;
+    fd_set readfds;
 
     if (argc != 3) {
         fprintf(stderr, "usage: %s hostname mode(0-1)\n", argv[0]);
         fprintf(stderr, "mode 0: without connect\nmode 1: using connect\n");
         exit(1);
     }
+    
+    FD_ZERO(&readfds);
 
     if ((he=gethostbyname(argv[1])) == NULL) {  // get the host info
         perror("gethostbyname");
@@ -65,6 +71,10 @@ int main(int argc, char *argv[])
     
         while((buffer = fgets(buffer, MAXDATASIZE, stdin)) != NULL) {
           
+          tv.tv_sec = TIMEOUT;
+          tv.tv_usec = 0;
+          FD_SET(sockfd, &readfds);
+                    
           lineSize = strlen(buffer);
           sentLines += 1;
           sentBytes += lineSize;
@@ -72,29 +82,44 @@ int main(int argc, char *argv[])
               longestLine = lineSize;
           
           if ((sendto(sockfd, buffer, strlen(buffer), 0,
-                     (struct sockaddr *)&their_addr, sizeof(struct sockaddr))) == -1) {
+                    (struct sockaddr *)&their_addr, sizeof(struct sockaddr))) == -1) {
               perror("sendto");
               exit(1);
           }
             
-          if ((numBytes = recvfrom(sockfd, buffer, MAXDATASIZE-1 , 0,
-                      (struct sockaddr *)&their_addr, &addr_len)) == -1) {
-              perror("recvfrom");
-              exit(1);
+          if ( !first )
+            select(sockfd+1, &readfds, NULL, NULL, &tv);
+          else
+            select(sockfd+1, &readfds, NULL, NULL, NULL);   // waiting for the first packet, no timeout
+              
+          if (FD_ISSET(sockfd, &readfds)) {
+              
+            if ((numBytes = recvfrom(sockfd, buffer, MAXDATASIZE-1 , 0,
+                        (struct sockaddr *)&their_addr, &addr_len)) == -1) {
+                perror("recvfrom");
+                exit(1);
+            }            
           }
-
+          
+          else {
+            fprintf( stderr, "Timeout (%ds)\n", TIMEOUT );
+            break;
+          }
+          
+          first = 0;
           buffer[numBytes] = '\0';
           recLines += 1;
           recBytes += numBytes;
-
           fputs(buffer, stdout);
         }
+        
         if ((sendto(sockfd, "", 0, 0,
                  (struct sockaddr *)&their_addr, sizeof(struct sockaddr))) == -1) {
           perror("sendto_zero_bytes");
           exit(1);
         }
         
+                
     }
 
     // use send and recv
@@ -140,6 +165,7 @@ int main(int argc, char *argv[])
           perror("connect_unspec");
           exit(1);
         }
+        
     }    
     
     endTime = times(NULL);   /* stop time counting */
