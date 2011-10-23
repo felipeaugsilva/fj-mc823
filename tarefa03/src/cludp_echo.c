@@ -135,6 +135,10 @@ int main(int argc, char *argv[])
 
         while((buffer = fgets(buffer, MAXDATASIZE, stdin)) != NULL) {
             
+          tv.tv_sec = TIMEOUT;
+          tv.tv_usec = 0;
+          FD_SET(sockfd, &readfds);
+          
           lineSize = strlen(buffer);
           sentLines += 1;
           sentBytes += lineSize;
@@ -146,11 +150,26 @@ int main(int argc, char *argv[])
               exit(1);
           }
           
-          if ((numBytes = recv(sockfd, buffer, MAXDATASIZE, 0)) == -1) {
-              perror("recv");
-              exit(1);
+          select(sockfd+1, &readfds, NULL, NULL, &tv);
+          
+          if (FD_ISSET(sockfd, &readfds)) {
+          
+              if ((numBytes = recv(sockfd, buffer, MAXDATASIZE, 0)) == -1) {
+                  perror("recv");
+                  exit(1);
+              }
+          }
+          else {
+            fprintf( stderr, "Timeout (%ds)\n", TIMEOUT );
+            timeouts++;
+
+            if( timeouts == MAXTIMEOUTS )
+                break;
+            else
+                continue;
           }
 
+          timeouts = 0;
           buffer[numBytes] = '\0';
           recLines += 1;
           recBytes += numBytes;
