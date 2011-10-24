@@ -21,8 +21,8 @@
 #include <sys/times.h>
 #include <sys/wait.h>
 
-#define SERVERPORT 3490 // the port users will be connecting to
-#define MAXDATASIZE 1000   /* max number of bytes we can get at once */
+#define SERVERPORT 3490     // the port users will be connecting to
+#define MAXDATASIZE 1000    // max number of bytes we can get at once
 
 int main(int argc, char *argv[])
 {
@@ -47,15 +47,15 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    their_addr.sin_family = AF_INET;     // host byte order
-    their_addr.sin_port = htons(SERVERPORT); // short, network byte order
+    their_addr.sin_family = AF_INET;                         // host byte order
+    their_addr.sin_port = htons(SERVERPORT);                 // short, network byte order
     their_addr.sin_addr = *((struct in_addr *)he->h_addr);
-    memset(&(their_addr.sin_zero), '\0', 8);  // zero the rest of the struct
+    memset(&(their_addr.sin_zero), '\0', 8);                 // zero the rest of the struct
     
     // use sendto and recvfrom
     if(atoi(argv[2]) == 0) {
         while((buffer = fgets(buffer, MAXDATASIZE, stdin)) != NULL) {
-          fputs(buffer, stdout);
+          
           if ((sendto(sockfd, buffer, strlen(buffer), 0,
                      (struct sockaddr *)&their_addr, sizeof(struct sockaddr))) == -1) {
               perror("sendto");
@@ -84,6 +84,9 @@ int main(int argc, char *argv[])
               exit(1);
           }
         }
+        
+        sleep(1);
+        
         if ((send(sockfd, "", 0, 0)) == -1) {
           perror("send_zero_bytes");
           exit(1);
