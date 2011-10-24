@@ -70,7 +70,7 @@ int main(int argc, char* argv[])
         
         // use sendto and recvfrom
         if(!(atoi(argv[1]))) {
-            
+      
             do {
                 addr_len = sizeof(struct sockaddr);
                 tv.tv_sec = TIMEOUT;
@@ -93,11 +93,14 @@ int main(int argc, char* argv[])
                     fprintf( stderr, "Timeout (%ds)\n", TIMEOUT );
                     break;
                 }
-	            if ((sendto(sockfd, buffer, numBytes, 0,
-			        (struct sockaddr *)&their_addr, sizeof(struct sockaddr))) == -1) {
-		            perror("sendto");
-		            exit(1);
-	            }
+                
+                if(numBytes <= 0) break;
+                
+                if ((sendto(sockfd, buffer, numBytes, 0,
+                (struct sockaddr *)&their_addr, sizeof(struct sockaddr))) == -1) {
+                  perror("sendto");
+                  exit(1);
+                }
                 
                 first = 0;
                 totalReads++;
@@ -118,47 +121,51 @@ int main(int argc, char* argv[])
                 exit(1);
             }
             
-            if (connect(sockfd, (struct sockaddr *)&their_addr, sizeof(struct sockaddr)) == -1) {
-                perror("connect");
-                exit(1);
-            }
-            
-            if ((sendto(sockfd, buffer, numBytes, 0,
-		        (struct sockaddr *)&their_addr, sizeof(struct sockaddr))) == -1) {
-	            perror("sendto");
-	            exit(1);
-            }
-            
-            totalReads++;
-            totalBytes += numBytes;
-            
-            do {
-                tv.tv_sec = TIMEOUT;
-                tv.tv_usec = 0;
-                FD_SET(sockfd, &readfds);
-                            
-                select(sockfd+1, &readfds, NULL, NULL, &tv);                
+            if(numBytes > 0) 
+            {
               
-                if (FD_ISSET(sockfd, &readfds)) {
-                
-                    if ((numBytes = recv(sockfd, buffer, MAXBUFLEN, 0)) == -1) {
-                        perror("recv");
-                        break;
-                    }
-                    if ((send(sockfd, buffer, numBytes, 0)) == -1) {
-                        perror("send");
-                        break;
-                    }
-                    totalReads++;
-                    totalBytes += numBytes;
-                }
-                else {
-                    fprintf( stderr, "Timeout (%ds)\n", TIMEOUT );
-                    break;
-                }
-                
-            } while(numBytes > 0);
+              if (connect(sockfd, (struct sockaddr *)&their_addr, sizeof(struct sockaddr)) == -1) {
+                  perror("connect");
+                  exit(1);
+              }
+              
+              if ((sendto(sockfd, buffer, numBytes, 0,
+              (struct sockaddr *)&their_addr, sizeof(struct sockaddr))) == -1) {
+                perror("sendto");
+                exit(1);
+              }
 
+              totalReads++;
+              totalBytes += numBytes;
+              
+              do {
+                  tv.tv_sec = TIMEOUT;
+                  tv.tv_usec = 0;
+                  FD_SET(sockfd, &readfds);
+                              
+                  select(sockfd+1, &readfds, NULL, NULL, &tv);                
+                
+                  if (FD_ISSET(sockfd, &readfds)) {
+                  
+                      if ((numBytes = recv(sockfd, buffer, MAXBUFLEN, 0)) == -1) {
+                          perror("recv");
+                          break;
+                      }
+                      if ((send(sockfd, buffer, numBytes, 0)) == -1) {
+                          perror("send");
+                          break;
+                      }
+                      totalReads++;
+                      totalBytes += numBytes;
+                  }
+                  else {
+                      fprintf( stderr, "Timeout (%ds)\n", TIMEOUT );
+                      break;
+                  }
+                  
+              } while(numBytes > 0);
+            }
+            
             close(sockfd);
             
             if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
