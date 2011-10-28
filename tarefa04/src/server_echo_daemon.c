@@ -17,12 +17,42 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <syslog.h>
+#include <sys/stat.h>
 
 #define MYPORT 3490        /* the port users will be connecting to */
 #define BACKLOG 10         /* how many pending connections queue will hold */
 #define MAXDATASIZE 1000   /* max number of bytes we can get at once */
+#define MAXFD 64
 
-int main()
+
+void daemon_init(const char *pname)
+{
+    int i;
+    pid_t pid;
+    
+    if ( (pid = fork()) != 0)
+        exit(0);                /* parent terminates */
+    
+    /* 1st child continues */
+    setsid();                   /* become session leader */
+    signal(SIGHUP, SIG_IGN);    /* when 1st child dies, may kill his child */
+    
+    if ( (pid = fork()) != 0)
+        exit(0);                /* 1st child terminates */
+    
+    /* 2nd child continues */
+    chdir("/tmp");  /* change working directory */
+    umask(0);       /* clear our file mode creation mask */
+    
+    for (i = 0; i < MAXFD; i++)  /*close all file descriptors */
+        close(i);
+    
+    openlog(pname, LOG_PID, 0);  /*tell syslog to log proc pid */
+}
+
+
+int main(int argc, char * argv[])
 {
     int sockfd, new_fd;              /* listen on sock_fd, new connection on new_fd */
     struct sockaddr_in my_addr;      /* my address information */
@@ -32,7 +62,11 @@ int main()
     char buffer[MAXDATASIZE];
     int optval = 1;
     FILE *rsock, *wsock;
-
+    
+    fprintf(stderr, "Starting Server...\n");
+    
+    daemon_init( argv[0] );          /* install server as a daemon */
+    
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         perror("socket");
         exit(1);
