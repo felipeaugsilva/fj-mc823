@@ -1,5 +1,5 @@
 /*
- * client_echo.c - Cliente de eco sofisticado em TCP
+ * client_echo.c - Cliente de eco em TCP usando E/S (I/O) multiplexada
  * 
  * MC823 - Tarefa 04
  * Felipe Augusto da Silva        RA 096993
@@ -98,15 +98,13 @@ int main(int argc, char *argv[])
             select(sockfd+1, NULL, &writefds, NULL, &tv);
             setvbuf(wsock, NULL, _IOLBF, lineSize);  
             if (FD_ISSET(sockfd, &writefds)) {
-              if ((fputs(buffer, wsock)) == EOF) {
-                  perror("send");
-                  exit(1);
-              }
+                if ((fputs(buffer, wsock)) == EOF) {
+                    perror("send");
+                    exit(1);
+                }
             }
-           //fflush(wsock);
         }
         else break;
-       // shutdown(sockfd, SHUT_WR);
 
         select(sockfd+1, &readfds, NULL, NULL, &tv);
         setvbuf(rsock, NULL, _IOLBF, lineSize);        
