@@ -1,7 +1,7 @@
 /*
- * server_echo.c - Servidor de eco sofisticado em TCP
+ * server_echo.c - Servidor daemon de eco em TCP
  * 
- * MC823 - Tarefa 02
+ * MC823 - Tarefa 04
  * Felipe Augusto da Silva        RA 096993
  * Jesse de Moura Tavano Moretto  RA 081704
  * 
@@ -24,6 +24,7 @@
 #define BACKLOG 10         /* how many pending connections queue will hold */
 #define MAXDATASIZE 1000   /* max number of bytes we can get at once */
 #define MAXFD 64
+#define MAXLOGMSG 1000
 
 
 void daemon_init(const char *pname)
@@ -45,10 +46,28 @@ void daemon_init(const char *pname)
     chdir("/tmp");  /* change working directory */
     umask(0);       /* clear our file mode creation mask */
     
-    for (i = 0; i < MAXFD; i++)  /*close all file descriptors */
+    for (i = 0; i < MAXFD; i++)  /* close all file descriptors */
         close(i);
     
-    openlog(pname, LOG_PID, 0);  /*tell syslog to log proc pid */
+    openlog(pname, LOG_PID, 0);  /* tell syslog to log proc pid */
+}
+
+
+/* appends message to log file */
+void mysyslog(char *msg)
+{
+    FILE * fp;
+    char buf[64], * ctime();
+    time_t time(), now;
+    (void) time(&now);               /* get seconds since Epoch into now */
+
+    sprintf(buf, "%s", ctime(&now)); /* change secs to date and time, put in buf */
+
+    if ((fp= fopen("server_echo.log", "a")) == 0)   /* private log file */
+        exit(1);
+
+    fprintf(fp, "%s%s\n", buf, msg);
+    fclose(fp);
 }
 
 
@@ -62,6 +81,7 @@ int main(int argc, char * argv[])
     char buffer[MAXDATASIZE];
     int optval = 1;
     FILE *rsock, *wsock;
+    char logMsg[1000];
     
     fprintf(stderr, "Starting Server...\n");
     
@@ -99,19 +119,20 @@ int main(int argc, char * argv[])
         if ((new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size)) == -1) {
             perror("accept");
             continue;
-    }
-          
-    if( (rsock = fdopen(new_fd, "r")) == NULL ) {
-              perror("fdopen_rsock");
-        exit(1);
-    }
+        }
+              
+        if( (rsock = fdopen(new_fd, "r")) == NULL ) {
+                  perror("fdopen_rsock");
+            exit(1);
+        }
 
-    if( (wsock = fdopen(new_fd, "w")) == NULL ) {
-        perror("fdopen_wsock");
-        exit(1);
-    }
+        if( (wsock = fdopen(new_fd, "w")) == NULL ) {
+            perror("fdopen_wsock");
+            exit(1);
+        }
         
-        printf("server: got connection from %s\n", inet_ntoa(their_addr.sin_addr));
+        sprintf(logMsg, "server: got connection from %s\n", inet_ntoa(their_addr.sin_addr));
+        mysyslog(logMsg);
         
         if(!fork()) {
             
@@ -128,8 +149,8 @@ int main(int argc, char * argv[])
                 totalBytes += strlen(buffer);
             }
             
-            fprintf(stderr, "Total de leituras:   %d\n", recLines);
-            fprintf(stderr, "Total de caracteres: %d\n", totalBytes);
+            sprintf(logMsg, "Total de leituras:   %d\nTotal de caracteres: %d\n", recLines, totalBytes);
+            mysyslog(logMsg);
             
             close(new_fd);
             exit(0);
@@ -144,3 +165,4 @@ int main(int argc, char * argv[])
 
     return 0;
 }
+
