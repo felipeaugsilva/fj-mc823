@@ -99,17 +99,17 @@ int main(int argc, char * argv[])
         if ((new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size)) == -1) {
             perror("accept");
             continue;
-        }
-        
-	if( (rsock = fdopen(new_fd, "r")) == NULL ) {
-            perror("fdopen_rsock");
-	    exit(1);
-	}
+    }
+          
+    if( (rsock = fdopen(new_fd, "r")) == NULL ) {
+              perror("fdopen_rsock");
+        exit(1);
+    }
 
-	if( (wsock = fdopen(new_fd, "w")) == NULL ) {
-	    perror("fdopen_wsock");
-	    exit(1);
-	}
+    if( (wsock = fdopen(new_fd, "w")) == NULL ) {
+        perror("fdopen_wsock");
+        exit(1);
+    }
         
         printf("server: got connection from %s\n", inet_ntoa(their_addr.sin_addr));
         
