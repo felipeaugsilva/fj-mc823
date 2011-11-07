@@ -122,7 +122,6 @@ int main(int argc, char *argv[])
         }
         
         if (FD_ISSET(sockfd, &writefds) && ! sentAll) {
-            setvbuf(wsock, NULL, _IOLBF, 0);
             if ((fputs(wbuffer, wsock)) == EOF) {
                 perror("send");
                 exit(1);
@@ -131,7 +130,6 @@ int main(int argc, char *argv[])
         }
         
         if (FD_ISSET(sockfd, &readfds)) {
-            setvbuf(rsock, NULL, _IOLBF, 0);
             if (fgets(rbuffer, MAXDATASIZE, rsock) == NULL)
                 break;
             recLines += 1;
