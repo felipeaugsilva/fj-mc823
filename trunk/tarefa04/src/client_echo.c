@@ -101,27 +101,27 @@ int main(int argc, char *argv[])
             FD_SET(sockfd, &writefds);
             
             if (select(sockfd+1, &readfds, &writefds, NULL, &tv) < 0) {
-	            perror("select");
-	            exit(1);
-	        }
+                perror("select");
+                exit(1);
+            }
             sent = 0;
 
         } else if (sent) {
             shutdown(sockfd, SHUT_WR);
             sentAll = 1;
             if (select(sockfd+1, &readfds, NULL, NULL, &tv) < 0) {
-	            perror("select");
-	            exit(1);
-	        }
+                perror("select");
+                exit(1);
+            }
         } else {
             FD_SET(sockfd, &writefds);
             if (select(sockfd+1, &readfds, &writefds, NULL, &tv) < 0) {
-	            perror("select");
-	            exit(1);
+                perror("select");
+                exit(1);
             }
-	    }
-	    
-	    if (FD_ISSET(sockfd, &writefds) && ! sentAll) {
+        }
+        
+        if (FD_ISSET(sockfd, &writefds) && ! sentAll) {
             setvbuf(wsock, NULL, _IOLBF, 0);
             if ((fputs(wbuffer, wsock)) == EOF) {
                 perror("send");
