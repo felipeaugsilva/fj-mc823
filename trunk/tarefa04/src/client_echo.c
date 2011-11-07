@@ -22,7 +22,7 @@
 
 #define PORT 3490          /* the port client will be connecting to */
 #define MAXDATASIZE 1000   /* max number of bytes we can get at once */
-#define TIMEOUT 3
+#define TIMEOUT 5
 
 
 int main(int argc, char *argv[])
@@ -33,9 +33,10 @@ int main(int argc, char *argv[])
     struct sockaddr_in their_addr;   /* connector's address information */
     clock_t startTime, endTime;
     float elapsedTime;
-    char *buffer = (char*)malloc(MAXDATASIZE*sizeof(char));
+    char *rbuffer = (char*)malloc(MAXDATASIZE*sizeof(char));
+    char *wbuffer = (char*)malloc(MAXDATASIZE*sizeof(char));
     FILE *rsock, *wsock;
-    
+    int sentAll = 0, sent = 1;
     struct timeval tv;
     fd_set readfds, writefds;
 
@@ -81,56 +82,78 @@ int main(int argc, char *argv[])
     
     startTime = times(NULL);   /* start time counting */
 
-    while(1) {
-      
+    setvbuf(wsock, NULL, _IOLBF, 0);
+    setvbuf(rsock, NULL, _IOLBF, 0);
+    
+    while (1) {
+        
         tv.tv_sec = TIMEOUT;
         tv.tv_usec = 0;
         FD_SET(sockfd, &readfds);
-        FD_SET(sockfd, &writefds);
-      
-        if(fgets(buffer, MAXDATASIZE, stdin) != NULL) {
-            lineSize = strlen(buffer);
+        
+        if (sent && fgets(wbuffer, MAXDATASIZE, stdin) != NULL) {
+            lineSize = strlen(wbuffer);
             sentLines += 1;
             sentBytes += lineSize;
-            if(lineSize > longestLine)
+            if (lineSize > longestLine)
                 longestLine = lineSize;
-           
-            select(sockfd+1, NULL, &writefds, NULL, &tv);
-            setvbuf(wsock, NULL, _IOLBF, lineSize);  
-            if (FD_ISSET(sockfd, &writefds)) {
-                if ((fputs(buffer, wsock)) == EOF) {
-                    perror("send");
-                    exit(1);
-                }
-            }
-        }
-        else break;
+            
+            FD_SET(sockfd, &writefds);
+            
+            if (select(sockfd+1, &readfds, &writefds, NULL, &tv) < 0) {
+	            perror("select");
+	            exit(1);
+	        }
+            sent = 0;
 
-        select(sockfd+1, &readfds, NULL, NULL, &tv);
-        setvbuf(rsock, NULL, _IOLBF, lineSize);        
+        } else if (sent) {
+            shutdown(sockfd, SHUT_WR);
+            sentAll = 1;
+            if (select(sockfd+1, &readfds, NULL, NULL, &tv) < 0) {
+	            perror("select");
+	            exit(1);
+	        }
+        } else {
+            FD_SET(sockfd, &writefds);
+            if (select(sockfd+1, &readfds, &writefds, NULL, &tv) < 0) {
+	            perror("select");
+	            exit(1);
+            }
+	    }
+	    
+	    if (FD_ISSET(sockfd, &writefds) && ! sentAll) {
+            setvbuf(wsock, NULL, _IOLBF, 0);
+            if ((fputs(wbuffer, wsock)) == EOF) {
+                perror("send");
+                exit(1);
+            }
+            sent = 1;
+        }
+        
         if (FD_ISSET(sockfd, &readfds)) {
-          fgets(buffer, MAXDATASIZE, rsock);
-          fflush(rsock);
-          recLines += 1;
-          recBytes += strlen(buffer);
-          fputs(buffer, stdout);
-        }       
+            setvbuf(rsock, NULL, _IOLBF, 0);
+            if (fgets(rbuffer, MAXDATASIZE, rsock) == NULL)
+                break;
+            recLines += 1;
+            recBytes += strlen(rbuffer);
+            fputs(rbuffer, stdout);
+        }
     }
-   
     
     endTime = times(NULL);   /* stop time counting */
     elapsedTime = (float)((endTime - startTime) / (float)sysconf(_SC_CLK_TCK));
 
     close(sockfd);
-    free(buffer);
+    free(rbuffer);
+    free(wbuffer);
     
     /* send statistics to stderr */
-    fprintf(stderr, "Linhas recebidas:       %d\n", recLines);
-    fprintf(stderr, "Caracteres recebidos:   %d\n", recBytes);
-    fprintf(stderr, "Tempo total: %4.2fs\n", elapsedTime);
     fprintf(stderr, "Linhas enviadas:        %d\n", sentLines);
-    fprintf(stderr, "Tamanho da maior linha: %d\n", longestLine);
+    fprintf(stderr, "Linhas recebidas:       %d\n", recLines);
     fprintf(stderr, "Caracteres enviados:    %d\n", sentBytes);
+    fprintf(stderr, "Caracteres recebidos:   %d\n", recBytes);
+    fprintf(stderr, "Tamanho da maior linha: %d\n", longestLine);
+    fprintf(stderr, "Tempo total: %4.2fs\n", elapsedTime);
     
     return 0;
 }
