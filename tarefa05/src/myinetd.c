@@ -88,8 +88,8 @@ void printServices(service services[], int total) {  // só pra testes, remover 
     int i;
     for(i=0; i<total; i++) {
         printf("[%s] ", services[i].name);
-        printf("[%s] ", services[i].port);
-        printf("[%s] ", services[i].socketType);
+        printf("[%d] ", services[i].port);
+        printf("[%d] ", services[i].socketType);
         printf("[%s] ", services[i].protoc);
         printf("[%s] ", services[i].wait);
         printf("[%s] ", services[i].pathname);
@@ -104,9 +104,11 @@ int main(int argc, char * argv[])
     FILE* configFile = fopen(configFileName, "r");
     service services[MAXSERVICES];
     char line[MAXLINESIZE];
-    int servIndex = 0;
+    int servIndex = 0, totalServ = 0;
     int sockfd[MAXSERVICES];
     int optval = 1;
+    int i;
+    struct sockaddr_in my_addr;
     
     // read services
     while(fgets(line, MAXLINESIZE, configFile) != NULL) {
