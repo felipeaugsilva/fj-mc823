@@ -21,6 +21,7 @@
 #include <syslog.h>
 #include <sys/stat.h>
 
+#define BACKLOG 10         /* how many pending connections queue will hold */
 #define MYPORT 3490        /* the port users will be connecting to */
 #define MAXFD 64
 #define MAXLOGMSG 1000
@@ -31,8 +32,8 @@
 /* struct for services defined in myinetd.conf */
 typedef struct {
     char name[16];
-    char port[8];
-    char socketType[7];
+    int port;
+    int socketType;
     char protoc[4];
     char wait[7];
     char pathname[32];
@@ -83,7 +84,6 @@ void mysyslog(char *msg)
     fclose(fp);
 }
 
-
 void printServices(service services[], int total) {  // só pra testes, remover ao final
     int i;
     for(i=0; i<total; i++) {
@@ -105,17 +105,58 @@ int main(int argc, char * argv[])
     service services[MAXSERVICES];
     char line[MAXLINESIZE];
     int servIndex = 0;
-
+    int sockfd[MAXSERVICES];
+    int optval = 1;
+    
     // read services
     while(fgets(line, MAXLINESIZE, configFile) != NULL) {
         strcpy(services[servIndex].name, strtok (line, " "));
-        strcpy(services[servIndex].port, strtok (NULL, " "));
-        strcpy(services[servIndex].socketType, strtok (NULL, " "));
+        services[servIndex].port = atoi(strtok (NULL, " "));
+        
+        // TCP or UDP
+        if( !strcmp (strtok (NULL, " "), "stream") ) services[servIndex].socketType = SOCK_STREAM;
+        else services[servIndex].socketType = SOCK_DGRAM;
+            
         strcpy(services[servIndex].protoc, strtok (NULL, " "));
         strcpy(services[servIndex].wait, strtok (NULL, " "));
         strcpy(services[servIndex].pathname, strtok (NULL, " "));
         strcpy(services[servIndex].args, strtok (NULL, "\n"));
         servIndex++;
+    }
+    totalServ = servIndex;
+    
+    my_addr.sin_family = AF_INET;          /* host byte order */
+    my_addr.sin_port = htons(MYPORT);      /* short, network byte order */
+    my_addr.sin_addr.s_addr = INADDR_ANY;  /* automatically fill with my IP */
+    bzero(&(my_addr.sin_zero), 8);         /* zero the rest of the struct */
+    
+    for (i = 0; i < totalServ; i++) 
+    {
+        if ((sockfd[i] = socket(AF_INET, services[i].socketType, 0)) == -1) 
+        {
+            perror("socket");
+            exit(1);
+        }   
+            
+        /* lose the pesky "address already in use" error message */
+        if (setsockopt(sockfd[i], SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int)) == -1) {
+            perror("setsockopt");
+            exit(1);
+        }
+        
+        if (bind(sockfd[i], (struct sockaddr *)&my_addr, sizeof(struct sockaddr)) == -1) {
+            perror("bind");
+            exit(1);
+        }
+        
+        if(!strcmp(services[servIndex].protoc, "tcp")) 
+        {
+            if (listen(sockfd[i], BACKLOG) == -1) 
+            {
+                perror("listen");
+                exit(1);
+            }
+        }
     }
     
     //printServices(services, servIndex);    // só pra testes, remover ao final

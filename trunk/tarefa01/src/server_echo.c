@@ -31,6 +31,7 @@ int main()
     int numBytes, totalBytes, recLines;
     char buffer[MAXDATASIZE];
     int optval = 1;
+    FILE *rsock, *wsock;
 
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         perror("socket");
@@ -57,7 +58,7 @@ int main()
         perror("listen");
         exit(1);
     }
-
+    
     while(1) {  /* main accept() loop */
         sin_size = sizeof(struct sockaddr_in);
         
@@ -65,15 +66,26 @@ int main()
             perror("accept");
             continue;
         }
+        
+	if( (rsock = fdopen(new_fd, "r")) == -1 ) {
+	    perror("fdopen_rsock");
+	    exit(1);
+	}
+	
+	if( (wsock = fdopen(new_fd, "w")) == -1 ) {
+	    perror("fdopen_wsock");
+	    exit(1);
+	}
+        
         printf("server: got connection from %s\n", inet_ntoa(their_addr.sin_addr));
         
         if(!fork()) {
             
             recLines = totalBytes = 0;
             
-            while ((numBytes = recv(new_fd, buffer, MAXDATASIZE, 0)) > 0) {
+            while ((numBytes = fgets(&rsock, buffer, MAXDATASIZE, 0)) > 0) {
                 
-                if (send(new_fd, buffer, numBytes, 0) == -1) {
+                if (fputs(&wsock, buffer, numBytes, 0) == -1) {
                     perror("send");
                     exit(1);
                 }
@@ -91,7 +103,7 @@ int main()
 
         close(new_fd);
         
-        while(waitpid(-1,NULL,WNOHANG) > 0);   /* clean up all child processes */
+        while(waitpid(-1,NULL,WNOHANG) > 0);   /* clean up all child processes */d
     }
 
     return 0;

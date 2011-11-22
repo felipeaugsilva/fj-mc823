@@ -33,6 +33,8 @@ int main(int argc, char *argv[])
     float elapsedTime;
     char *buffer = (char*)malloc(MAXDATASIZE*sizeof(char));
 
+
+
     if (argc != 2) {
         fprintf(stderr,"usage: client hostname\n");
         exit(1);
