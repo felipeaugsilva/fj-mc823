@@ -21,6 +21,7 @@ main()
     struct sockaddr_in my_addr;    /* my address information */
     struct sockaddr_in their_addr; /* connector's address information */
     int sin_size;
+    void *yes;
 
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         perror("socket");

@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
           exit(1);
         }
     }    
-
+    printf("\n\nFIM!\n\n");
     close(sockfd);
     free(buffer);
 
