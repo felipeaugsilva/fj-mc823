@@ -105,6 +105,7 @@ int main(int argc, char * argv[])
     int sockfd[MAXSERVICES], new_fd;
     int optval = 1;
     struct sockaddr_in my_addr[MAXSERVICES], their_addr;
+    int numBytes = 0;
     
     fprintf( stderr, "Starting myinetd...\n" );
     
@@ -177,7 +178,7 @@ int main(int argc, char * argv[])
     /* main loop */
     while(1)
     {
-        for (servIndex = 0; servIndex < totalServ; servIndex++) {    //TODO: setar todos sempre???
+        for (servIndex = 0; servIndex < totalServ; servIndex++) {    //TODO: setar todos sempre??? - a gente tinha que setar eles sempre nos outros labs lembra?
             FD_SET(sockfd[ servIndex ], &fds);
         }
         
@@ -185,6 +186,8 @@ int main(int argc, char * argv[])
             perror("select");
             exit(1);
         }
+        
+        unsigned int sin_size = sizeof(struct sockaddr_in);
         
         // iterate through all the services to check which one was called
         for (servIndex = 0; servIndex < totalServ; servIndex++)
@@ -195,8 +198,6 @@ int main(int argc, char * argv[])
                 if ( ! strcmp(services[ servIndex ].protoc, "tcp") )
                 {
                     fprintf( stderr, "got tcp...\n" ); // TODO: remover
-                    
-                    unsigned int sin_size = sizeof(struct sockaddr_in);
                     
                     if ((new_fd = accept(sockfd[ servIndex ], (struct sockaddr *)&their_addr, &sin_size)) == -1) {
                         perror("accept");
@@ -220,14 +221,32 @@ int main(int argc, char * argv[])
                     }
                     close( new_fd );
                 }
-                // TODO: UDP socket
+                // UDP socket
                 else
                 {
                     fprintf( stderr, "got udp...\n" ); // TODO: remover
                     
                     if ( ! fork() )
                     {
-                        //trata servico UDP
+                      // close all sockets other than the original socket
+                      int i;
+                      for (i = 0; i < totalServ; i++)
+                            close( sockfd[ i ] );
+
+                      if ((numBytes = recvfrom(sockfd[ servIndex ], NULL, MAXLINESIZE-1 , MSG_PEEK, (struct sockaddr *)&their_addr, &sin_size)) == -1) 
+                      {
+                        perror("recvfrom");
+                        exit(1);
+                      }
+                      if(numBytes < 0) break;
+                      
+                      dup2( fileno(fdopen(new_fd, "r")), 0 );
+                      dup2( fileno(fdopen(new_fd, "w")), 1 );
+                      dup2( fileno(fdopen(new_fd, "w")), 2 );
+                      
+                      execv( services[ servIndex ].name, services[ servIndex ].args );
+                      
+                      exit( 0 );
                     }
                 }
             }
