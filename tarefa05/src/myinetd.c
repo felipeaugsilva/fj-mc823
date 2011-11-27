@@ -99,13 +99,11 @@ void printServices(service services[], int total) {  // TODO: só pra testes, re
 
 int main(int argc, char * argv[])
 {
-    service services[MAXSERVICES];
-    char line[MAXLINESIZE], logMsg[MAXLOGMSG];
-    int servIndex = 0;
-    int sockfd[MAXSERVICES], new_fd;
-    int optval = 1;
-    struct sockaddr_in my_addr[MAXSERVICES], their_addr;
-    int numBytes = 0;
+    service services[ MAXSERVICES ];
+    char line[ MAXLINESIZE ], logMsg [MAXLOGMSG ];
+    int sockfd[ MAXSERVICES ], new_fd;
+    struct sockaddr_in my_addr[ MAXSERVICES ], their_addr;
+    int servIndex = 0, optval = 1, numBytes = 0;
     
     fprintf( stderr, "Starting myinetd...\n" );
     
@@ -127,7 +125,7 @@ int main(int argc, char * argv[])
         strcpy(services[ servIndex ].protoc, strtok (NULL, " "));
         strcpy(services[ servIndex ].wait, strtok (NULL, " "));
         strcpy(services[ servIndex ].pathname, strtok (NULL, " "));
-        strcpy(services[ servIndex ].args, strtok (NULL, "\n"));
+        strcpy(services[ servIndex ].args, strtok (NULL, " "));
         
         servIndex++;
     }
@@ -135,6 +133,9 @@ int main(int argc, char * argv[])
     
     // total number of services
     int totalServ = servIndex;
+    
+    //daemon_init( argv[0] );          /* install server as a daemon */
+    //mysyslog( "myinetd started...\n" );
     
     // for all services, create the appropriate socket, bind, and start listening (if tcp)
     for (servIndex = 0; servIndex < totalServ; servIndex++)
@@ -172,9 +173,6 @@ int main(int argc, char * argv[])
     fd_set fds;
     FD_ZERO(&fds);
     
-    //daemon_init( argv[0] );          /* install server as a daemon */
-    //mysyslog( "myinetd started...\n" );
-    
     /* main loop */
     while(1)
     {
@@ -194,6 +192,8 @@ int main(int argc, char * argv[])
         {
             if ( FD_ISSET(sockfd[ servIndex ], &fds) )
             {
+                fprintf( stderr, "%s...\n", services[ servIndex ].name ); // TODO: remover
+                
                 // TCP socket
                 if ( ! strcmp(services[ servIndex ].protoc, "tcp") )
                 {
@@ -214,7 +214,7 @@ int main(int argc, char * argv[])
                         dup2( fileno(fdopen(new_fd, "r")), 1 );
                         dup2( fileno(fdopen(new_fd, "r")), 2 );
 
-                        if ( execl( services[ servIndex ].pathname, services[ servIndex ].args, (char *) 0 == -1 ) == -1 )
+                        if ( execl( services[ servIndex ].pathname, services[ servIndex ].args, (char *) 0 ) == -1 )
                             perror("exec");
                         
                         exit( 0 );
@@ -244,7 +244,7 @@ int main(int argc, char * argv[])
                       dup2( fileno(fdopen(sockfd[ servIndex ], "w")), 1 );
                       dup2( fileno(fdopen(sockfd[ servIndex ], "w")), 2 );
                       
-                      if ( execl( services[ servIndex ].pathname, services[ servIndex ].args, (char *) 0 == -1 ) == -1 )
+                      if ( execl( services[ servIndex ].pathname, services[ servIndex ].args, (char *) 0 ) == -1 )
                             perror("exec");
                       
                       exit( 0 );
