@@ -127,7 +127,7 @@ int main(int argc, char * argv[])
         strcpy(services[ servIndex ].protoc, strtok (NULL, " "));
         strcpy(services[ servIndex ].wait, strtok (NULL, " "));
         strcpy(services[ servIndex ].pathname, strtok (NULL, " "));
-        strcpy(services[ servIndex ].args, strtok (NULL, "\n"));
+        strcpy(services[ servIndex ].args, strtok (NULL, " "));
         
         servIndex++;
     }
