@@ -210,13 +210,13 @@ int main(int argc, char * argv[])
                         for (i = 0; i < totalServ; i++)
                             close( sockfd[ i ] );
                         
-                        dup2( fileno(fdopen(new_fd, "r")), 0 );
-                        dup2( fileno(fdopen(new_fd, "w")), 1 );
-                        dup2( fileno(fdopen(new_fd, "w")), 2 );
+                        dup2( fileno(fdopen(new_fd, "w")), 0 );
+                        dup2( fileno(fdopen(new_fd, "r")), 1 );
+                        dup2( fileno(fdopen(new_fd, "r")), 2 );
+
+                        if ( execl( services[ servIndex ].pathname, services[ servIndex ].args, (char *) 0 == -1 ) == -1 )
+                            perror("exec");
                         
-                        execv( services[ servIndex ].name, services[ servIndex ].args );
-                        
-                        close( new_fd );
                         exit( 0 );
                     }
                     close( new_fd );
