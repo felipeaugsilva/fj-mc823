@@ -127,7 +127,7 @@ int main(int argc, char * argv[])
         strcpy(services[ servIndex ].protoc, strtok (NULL, " "));
         strcpy(services[ servIndex ].wait, strtok (NULL, " "));
         strcpy(services[ servIndex ].pathname, strtok (NULL, " "));
-        strcpy(services[ servIndex ].args, strtok (NULL, " "));
+        strcpy(services[ servIndex ].args, strtok (NULL, "\n"));
         
         servIndex++;
     }
@@ -240,11 +240,12 @@ int main(int argc, char * argv[])
                       }
                       if(numBytes < 0) break;
                       
-                      dup2( fileno(fdopen(new_fd, "r")), 0 );
-                      dup2( fileno(fdopen(new_fd, "w")), 1 );
-                      dup2( fileno(fdopen(new_fd, "w")), 2 );
+                      dup2( fileno(fdopen(sockfd[ servIndex ], "r")), 0 );
+                      dup2( fileno(fdopen(sockfd[ servIndex ], "w")), 1 );
+                      dup2( fileno(fdopen(sockfd[ servIndex ], "w")), 2 );
                       
-                      execv( services[ servIndex ].name, services[ servIndex ].args );
+                      if ( execl( services[ servIndex ].pathname, services[ servIndex ].args, (char *) 0 == -1 ) == -1 )
+                            perror("exec");
                       
                       exit( 0 );
                     }
