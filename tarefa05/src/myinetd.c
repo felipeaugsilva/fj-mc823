@@ -79,23 +79,25 @@ void mysyslog(char *msg)
     if ((fp= fopen("myinetd.log", "a")) == 0)   /* private log file */
         exit(1);
 
-    fprintf(fp, "%s%s\n", buf, msg);
+    fprintf(fp, "%s%s\n\n", buf, msg);
     fclose(fp);
 }
 
-void printServices(service services[], int total) {  // TODO: só pra testes, remover ao final
-    int i;
-    for(i=0; i<total; i++) {
-        printf("[%s] ", services[i].name);
-        printf("[%d] ", services[i].port);
-        printf("[%d] ", services[i].socketType);
-        printf("[%s] ", services[i].protoc);
-        printf("[%s] ", services[i].wait);
-        printf("[%s] ", services[i].pathname);
-        printf("[%s] \n", services[i].args);
-    }
-}
 
+void handle_sigchld_signal(int sig)
+{
+    pid_t pid;
+    int status;
+    char logMsg [MAXLOGMSG ];
+    
+    pid = wait( &status );
+    
+    sprintf( logMsg, "Finished service: PID %d", pid );
+    mysyslog( logMsg );
+    
+    signal( sig, handle_sigchld_signal );
+}
+ 
 
 int main(int argc, char * argv[])
 {
@@ -103,7 +105,7 @@ int main(int argc, char * argv[])
     char line[ MAXLINESIZE ], logMsg [MAXLOGMSG ];
     int sockfd[ MAXSERVICES ], new_fd;
     struct sockaddr_in my_addr[ MAXSERVICES ], their_addr;
-    int servIndex = 0, optval = 1, numBytes = 0;
+    int pid, servIndex = 0, optval = 1, numBytes = 0;
     
     fprintf( stderr, "Starting myinetd...\n" );
     
@@ -134,8 +136,8 @@ int main(int argc, char * argv[])
     // total number of services
     int totalServ = servIndex;
     
-    //daemon_init( argv[0] );          /* install server as a daemon */
-    //mysyslog( "myinetd started...\n" );
+    daemon_init( argv[0] );          /* install server as a daemon */
+    mysyslog( "myinetd started..." );
     
     // for all services, create the appropriate socket, bind, and start listening (if tcp)
     for (servIndex = 0; servIndex < totalServ; servIndex++)
@@ -173,6 +175,8 @@ int main(int argc, char * argv[])
     fd_set fds;
     FD_ZERO(&fds);
     
+    signal( SIGCHLD, handle_sigchld_signal );
+    
     /* main loop */
     while(1)
     {
@@ -181,8 +185,12 @@ int main(int argc, char * argv[])
         }
         
         if (select(sockfd[totalServ-1]+1, &fds, NULL, NULL, NULL) < 0) {
-            perror("select");
-            exit(1);
+            if (errno == EINTR ) {
+                continue;
+            } else {
+                perror("select");
+                exit(1);
+            }
         }
         
         unsigned int sin_size = sizeof(struct sockaddr_in);
@@ -203,7 +211,8 @@ int main(int argc, char * argv[])
                         perror("accept");
                         exit(1);
                     }
-                    if ( ! fork() )
+                    
+                    if ( (pid = fork()) == 0 )
                     {
                         // close all sockets other than new_fd
                         int i;
@@ -219,6 +228,11 @@ int main(int argc, char * argv[])
                         
                         exit( 0 );
                     }
+                    
+                    sprintf( logMsg, "Started service: %s with PID %d\nClient: %s:%d",
+                             services[ servIndex ].name, pid, inet_ntoa(their_addr.sin_addr), ntohs(their_addr.sin_port) );
+                    mysyslog( logMsg );
+                    
                     close( new_fd );
                 }
                 // UDP socket

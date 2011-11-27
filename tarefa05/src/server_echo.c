@@ -9,8 +9,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 
 #define MAXDATASIZE 1000   /* max number of bytes we can get at once */
 
