@@ -49,7 +49,7 @@ int main(int argc, char * argv[])
     
     getpeername( 0, (struct sockaddr *)&their_addr, &sin_size );
     
-    sprintf( buffer, "Client: %s", inet_ntoa(their_addr.sin_addr) );  // TODO: client port
+    sprintf( buffer, "Client: %s:%d", inet_ntoa(their_addr.sin_addr), ntohs(their_addr.sin_port) );  // TODO: client port
     mysyslog( buffer );
     
     sprintf( buffer, "%s", ctime( &now ) );
