@@ -1,5 +1,5 @@
 /*
- * mydaytime_tcp.c - Servidor daytime
+ * mydaytime_tcp.c - Servidor daytime TCP
  * 
  * MC823 - Tarefa 05
  * Felipe Augusto da Silva        RA 096993
