@@ -25,7 +25,7 @@
 #define BACKLOG 10         /* how many pending connections queue will hold */
 #define MAXFD 64
 #define MAXLOGMSG 1000
-#define MAXSERVICES 3      /* number of services provided */
+#define MAXSERVICES 3      /* max number of services provided */
 #define MAXLINESIZE 256
 
 
@@ -39,6 +39,16 @@ typedef struct {
     char pathname[32];
     char args[64];
 } service;
+
+
+/* this array has one element for each service (tcp and udp)
+   if the service is tcp, its respective value is always 0.
+   if it's udp and is not being used, the value is 0, else, 
+   the value is the PID of the respective process. */
+int udpServiceUsedPid[ MAXSERVICES ];
+
+/* Total number of services provided */
+int totalServ = 0;
 
 
 void daemon_init(const char *pname)
@@ -79,22 +89,30 @@ void mysyslog(char *msg)
 
     if ((fp= fopen("myinetd.log", "a")) == 0)   /* private log file */
         exit(1);
-
+    
     fprintf(fp, "%s%s\n\n", buf, msg);
     fclose(fp);
 }
 
-
+/* Handle SIGCHLD signal */
 void handle_sigchld_signal(int sig)
 {
     pid_t pid;
     int status;
     char logMsg [MAXLOGMSG ];
+    int servIndex;
     
     pid = wait( &status );
     
     sprintf( logMsg, "Finished service: PID %d", pid );
     mysyslog( logMsg );
+    
+    for (servIndex = 0; servIndex < totalServ; servIndex++) {
+        if ( udpServiceUsedPid[ servIndex ] == pid ) {
+            // release the udp service so it can be used again
+            udpServiceUsedPid[ servIndex ] = 0;
+        }
+    }
     
     signal( sig, handle_sigchld_signal );
 }
@@ -137,7 +155,7 @@ int main(int argc, char * argv[])
     fclose( configFile );
     
     // total number of services
-    int totalServ = servIndex;
+    totalServ = servIndex;
     
     daemon_init( argv[0] );          /* install server as a daemon */
     mysyslog( "myinetd started..." );
@@ -173,6 +191,8 @@ int main(int argc, char * argv[])
                 exit(1);
             }
         }
+        
+        udpServiceUsedPid[ servIndex ] = 0;
     }
     
     fd_set fds;
@@ -184,11 +204,13 @@ int main(int argc, char * argv[])
     while(1)
     {
         for (servIndex = 0; servIndex < totalServ; servIndex++) {  
-            FD_SET(sockfd[ servIndex ], &fds);
+            // udp services that are being used are not set
+            if ( udpServiceUsedPid[ servIndex ] == 0 )
+                FD_SET(sockfd[ servIndex ], &fds);
         }
         
         if (select(sockfd[totalServ-1]+1, &fds, NULL, NULL, NULL) < 0) {
-            if (errno == EINTR ) {
+            if (errno == EINTR ) {     // error received when a child dies
                 continue;
             } else {
                 perror("select");
@@ -203,13 +225,9 @@ int main(int argc, char * argv[])
         {
             if ( FD_ISSET(sockfd[ servIndex ], &fds) )
             {
-                fprintf( stderr, "%s...\n", services[ servIndex ].name ); // TODO: remover
-                
                 // TCP socket
                 if ( ! strcmp(services[ servIndex ].protoc, "tcp") )
                 {
-                    fprintf( stderr, "got tcp...\n" ); // TODO: remover
-                    
                     if ((new_fd = accept(sockfd[ servIndex ], (struct sockaddr *)&their_addr, &sin_size)) == -1) {
                         perror("accept");
                         exit(1);
@@ -242,41 +260,38 @@ int main(int argc, char * argv[])
                 // UDP socket
                 else
                 {
-                    fprintf( stderr, "got udp...\n" ); // TODO: remover
-                    
                     if ( (pid = fork()) == 0 )
                     {
-                      // close all sockets other than the original socket
-                      int i;
-                      for (i = 0; i < totalServ; i++)
-                      {
+                        // close all sockets other than the original socket
+                        int i;
+                        for (i = 0; i < totalServ; i++)
+                        {
                            if( i != servIndex ) 
                              close( sockfd[ i ] );
-                      }
+                        }
 
-                      if ((recvfrom(sockfd[ servIndex ], buf, MAXLINESIZE-1 , MSG_PEEK, (struct sockaddr *)&their_addr, &sin_size)) == -1) 
-                      {
+                        if ((recvfrom(sockfd[ servIndex ], buf, MAXLINESIZE-1 , MSG_PEEK, (struct sockaddr *)&their_addr, &sin_size)) == -1) 
+                        {
                         perror("recvfrom");
                         exit(1);
-                      }
-                      
-                      dup2( fileno(fdopen(sockfd[ servIndex ], "w")), 0 );
-                      dup2( fileno(fdopen(sockfd[ servIndex ], "r")), 1 );
-                      dup2( fileno(fdopen(sockfd[ servIndex ], "r")), 2 );
-                      
-                      close( sockfd[ servIndex ] );
-                      
-                      if ( execl( services[ servIndex ].pathname, services[ servIndex ].args, (char *) 0 ) == -1 )
+                        }
+
+                        dup2( fileno(fdopen(sockfd[ servIndex ], "w")), 0 );
+                        dup2( fileno(fdopen(sockfd[ servIndex ], "r")), 1 );
+                        dup2( fileno(fdopen(sockfd[ servIndex ], "r")), 2 );
+
+                        close( sockfd[ servIndex ] );
+
+                        if ( execl( services[ servIndex ].pathname, services[ servIndex ].args, (char *) 0 ) == -1 )
                             perror("exec");
-                      
-                      exit( 0 );
+
+                        exit( 0 );
                       
                     }
                     
                     FD_CLR(sockfd[ servIndex ], &fds);
                     
-                    // wait for child to terminate
-                    waitpid(pid, NULL, WUNTRACED | WCONTINUED);
+                    udpServiceUsedPid[ servIndex ] = pid;
                     
                     sprintf( logMsg, "Started service: %s with PID %d\nClient: %s:%d",
                              services[ servIndex ].name, pid, inet_ntoa(their_addr.sin_addr), ntohs(their_addr.sin_port) );
