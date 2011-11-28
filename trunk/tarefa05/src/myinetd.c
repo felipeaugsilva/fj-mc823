@@ -20,6 +20,7 @@
 #include <arpa/inet.h>
 #include <syslog.h>
 #include <sys/stat.h>
+#include <sys/select.h>
 
 #define BACKLOG 10         /* how many pending connections queue will hold */
 #define MAXFD 64
@@ -104,8 +105,10 @@ int main(int argc, char * argv[])
     service services[ MAXSERVICES ];
     char line[ MAXLINESIZE ], logMsg [MAXLOGMSG ];
     int sockfd[ MAXSERVICES ], new_fd;
+    int buf[MAXLINESIZE];
     struct sockaddr_in my_addr[ MAXSERVICES ], their_addr;
-    int pid, servIndex = 0, optval = 1, numBytes = 0;
+    int servIndex = 0, optval = 1;
+    pid_t pid;
     
     fprintf( stderr, "Starting myinetd...\n" );
     
@@ -180,7 +183,7 @@ int main(int argc, char * argv[])
     /* main loop */
     while(1)
     {
-        for (servIndex = 0; servIndex < totalServ; servIndex++) {    //TODO: setar todos sempre??? - a gente tinha que setar eles sempre nos outros labs lembra?
+        for (servIndex = 0; servIndex < totalServ; servIndex++) {  
             FD_SET(sockfd[ servIndex ], &fds);
         }
         
@@ -235,34 +238,50 @@ int main(int argc, char * argv[])
                     
                     close( new_fd );
                 }
+                
                 // UDP socket
                 else
                 {
                     fprintf( stderr, "got udp...\n" ); // TODO: remover
                     
-                    if ( ! fork() )
+                    if ( (pid = fork()) == 0 )
                     {
                       // close all sockets other than the original socket
                       int i;
                       for (i = 0; i < totalServ; i++)
-                            close( sockfd[ i ] );
+                      {
+                           if( i != servIndex ) 
+                             close( sockfd[ i ] );
+                      }
 
-                      if ((numBytes = recvfrom(sockfd[ servIndex ], NULL, MAXLINESIZE-1 , MSG_PEEK, (struct sockaddr *)&their_addr, &sin_size)) == -1) 
+                      if ((recvfrom(sockfd[ servIndex ], buf, MAXLINESIZE-1 , MSG_PEEK, (struct sockaddr *)&their_addr, &sin_size)) == -1) 
                       {
                         perror("recvfrom");
                         exit(1);
                       }
-                      if(numBytes < 0) break;
                       
-                      dup2( fileno(fdopen(sockfd[ servIndex ], "r")), 0 );
-                      dup2( fileno(fdopen(sockfd[ servIndex ], "w")), 1 );
-                      dup2( fileno(fdopen(sockfd[ servIndex ], "w")), 2 );
+                      dup2( fileno(fdopen(sockfd[ servIndex ], "w")), 0 );
+                      dup2( fileno(fdopen(sockfd[ servIndex ], "r")), 1 );
+                      dup2( fileno(fdopen(sockfd[ servIndex ], "r")), 2 );
+                      
+                      close( sockfd[ servIndex ] );
                       
                       if ( execl( services[ servIndex ].pathname, services[ servIndex ].args, (char *) 0 ) == -1 )
                             perror("exec");
                       
                       exit( 0 );
+                      
                     }
+                    
+                    FD_CLR(sockfd[ servIndex ], &fds);
+                    
+                    // wait for child to terminate
+                    waitpid(pid, NULL, WUNTRACED | WCONTINUED);
+                    
+                    sprintf( logMsg, "Started service: %s with PID %d\nClient: %s:%d",
+                             services[ servIndex ].name, pid, inet_ntoa(their_addr.sin_addr), ntohs(their_addr.sin_port) );
+                    mysyslog( logMsg );                   
+                   
                 }
             }
         }

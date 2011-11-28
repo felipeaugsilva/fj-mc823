@@ -1,5 +1,5 @@
 /*
- * mydaytime_udp.c - Servidor daytime
+ * mydaytime_udp.c - Servidor daytime UDP
  * 
  * MC823 - Tarefa 05
  * Felipe Augusto da Silva        RA 096993
@@ -16,6 +16,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <string.h>
 
 #define MAXLINE 100
 
@@ -44,7 +45,7 @@ int main(int argc, char * argv[])
     struct sockaddr_in their_addr;
     time_t time(), now;
     (void) time( &now );
-    
+        
     unsigned int sin_size = sizeof(struct sockaddr_in);
     
     if ( (recvfrom(0, buffer, MAXLINE-1 , 0, (struct sockaddr *)&their_addr, &sin_size)) == -1) 
@@ -58,13 +59,12 @@ int main(int argc, char * argv[])
     
     sprintf( buffer, "%s", ctime( &now ) );
 
-    if ((sendto(1, buffer, MAXLINE-1, 0, (struct sockaddr *)&their_addr, sizeof(struct sockaddr))) == -1) 
+    if ((sendto(1, buffer, strlen(buffer), 0, (struct sockaddr *)&their_addr, sizeof(struct sockaddr))) == -1) 
     {
-          perror("sendto");
-          exit(1);
+        perror("sendto");
+        exit(1);
     }
     
-    close( 0 );
-    
+    close( 0 );    
     return 0;
 }
