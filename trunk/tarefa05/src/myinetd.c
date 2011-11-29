@@ -260,6 +260,14 @@ int main(int argc, char * argv[])
                 // UDP socket
                 else
                 {
+                  
+                    if ((recvfrom(sockfd[ servIndex ], buf, MAXLINESIZE-1 , MSG_PEEK, (struct sockaddr *)&their_addr, &sin_size)) == -1) 
+                    {
+                        perror("recvfrom");
+                        exit(1);
+                    }
+
+                  
                     if ( (pid = fork()) == 0 )
                     {
                         // close all sockets other than the original socket
@@ -270,11 +278,6 @@ int main(int argc, char * argv[])
                              close( sockfd[ i ] );
                         }
 
-                        if ((recvfrom(sockfd[ servIndex ], buf, MAXLINESIZE-1 , MSG_PEEK, (struct sockaddr *)&their_addr, &sin_size)) == -1) 
-                        {
-                        perror("recvfrom");
-                        exit(1);
-                        }
 
                         dup2( fileno(fdopen(sockfd[ servIndex ], "w")), 0 );
                         dup2( fileno(fdopen(sockfd[ servIndex ], "r")), 1 );
